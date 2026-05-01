@@ -3,10 +3,16 @@ import { ref, computed, watch } from 'vue'
 import * as XLSX from 'xlsx'
 import { Copy, Check, Search, Route, X, Upload, FileSpreadsheet, AlertCircle, Trash2 } from 'lucide-vue-next'
 import Button from '@/components/ui/Button.vue'
+import {
+  buildSerialQueries,
+  buildRouteQuery,
+  buildBulkCardQuery,
+  buildBulkLogPassQuery,
+  type SerialType,
+} from '@/lib/query-builders'
 
-type MainTab   = 'inquiry' | 'model-route' | 'bulk-inquiry'
-type BulkTab   = 'card' | 'log_pass'
-type SerialType = 'card' | 'motherserial' | 'batch'
+type MainTab = 'inquiry' | 'model-route' | 'bulk-inquiry'
+type BulkTab = 'card' | 'log_pass'
 
 const activeTab  = ref<MainTab>('inquiry')
 
@@ -18,32 +24,7 @@ const trimmed    = computed(() => serial.value.trim())
 
 watch([serialType, trimmed], () => { copiedMap.value = {} })
 
-const queries = computed(() => {
-  const s = trimmed.value
-  if (!s) return []
-  if (serialType.value === 'card') {
-    return [
-      { label: 'card',       sql: `SELECT * FROM card WHERE serialno = '${s}'` },
-      { label: 'log_pass',   sql: `SELECT * FROM log_pass WHERE cardno = '${s}_1' ORDER BY lastupdate` },
-      { label: 'log_repair', sql: `SELECT * FROM log_repair WHERE cardno = '${s}_1' ORDER BY lastupdate` },
-      { label: 'log_link',   sql: `SELECT * FROM log_link WHERE serialno = '${s}' or serialnoLink = '${s}'` },
-    ]
-  } else if (serialType.value === 'motherserial') {
-    return [
-      { label: 'motherserial', sql: `SELECT * FROM motherserial WHERE motherserial = '${s}'` },
-      { label: 'log_mother',   sql: `SELECT * FROM log_mother WHERE motherserial = '${s}' ORDER BY lastupdate` },
-      { label: 'log_repair',   sql: `SELECT * FROM log_repair WHERE cardno = '${s}' ORDER BY lastupdate` },
-      { label: 'log_link',     sql: `SELECT * FROM log_link WHERE serialno = '${s}' or serialnoLink = '${s}' ORDER BY lastupdate` },
-    ]
-  } else {
-    return [
-      { label: 'batch',      sql: `SELECT * FROM batch WHERE batchno = '${s}'` },
-      { label: 'log_batch',  sql: `SELECT * FROM log_batch WHERE batchno = '${s}_1' ORDER BY lastupdate` },
-      { label: 'log_repair', sql: `SELECT * FROM log_repair WHERE cardno = '${s}_1' ORDER BY lastupdate` },
-      { label: 'log_link',   sql: `SELECT * FROM log_link WHERE serialno = '${s}' or serialnoLink = '${s}' ORDER BY lastupdate` },
-    ]
-  }
-})
+const queries = computed(() => buildSerialQueries(serialType.value, trimmed.value))
 
 const allCopied = computed(() => queries.value.length > 0 && queries.value.every((_, i) => copiedMap.value[i]))
 
@@ -79,20 +60,8 @@ const copiedBulkCard = ref(false)
 const copiedBulkLog  = ref(false)
 const isDragging     = ref(false)
 
-function formatIn(values: string[]): string {
-  return values.map(v => `  '${v}'`).join(',\n')
-}
-
-const bulkCardQuery = computed(() => {
-  if (!bulkSerials.value.length) return ''
-  return `SELECT * FROM card\nWHERE serialno IN (\n${formatIn(bulkSerials.value)}\n)\nORDER BY lastupdate;`
-})
-
-const bulkLogPassQuery = computed(() => {
-  if (!bulkSerials.value.length) return ''
-  const suffixed = bulkSerials.value.map(s => `${s}_1`)
-  return `SELECT * FROM log_pass\nWHERE cardno IN (\n${formatIn(suffixed)}\n)\nORDER BY cardno, lastupdate;`
-})
+const bulkCardQuery    = computed(() => buildBulkCardQuery(bulkSerials.value))
+const bulkLogPassQuery = computed(() => buildBulkLogPassQuery(bulkSerials.value))
 
 async function handleBulkFile(file: File) {
   bulkError.value = ''
@@ -155,9 +124,7 @@ async function copyBulkLog() {
 const partno        = ref('')
 const copiedRoute   = ref(false)
 const trimmedPartno = computed(() => partno.value.trim())
-const routeQuery    = computed(() =>
-  trimmedPartno.value ? `EXEC checkModelRoute '${trimmedPartno.value}'` : ''
-)
+const routeQuery    = computed(() => buildRouteQuery(trimmedPartno.value))
 function highlightRoute(sql: string): string {
   return sql
     .replace(/\b(EXEC)\b/g, '<span class="sql-keyword">$1</span>')
