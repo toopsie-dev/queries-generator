@@ -15,9 +15,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.6.0",
-    "lucide-vue-next": "^0.469.0"
-  },
-  "devDependencies": {
+    "lucide-vue-next": "^0.469.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "typescript": "~5.7.2",
     "vite": "^6.3.5",
@@ -25,5 +23,6 @@
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "@types/node": "^22.10.5"
-  }
+  },
+  "devDependencies": {}
 }
