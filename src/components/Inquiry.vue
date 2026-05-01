@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Copy, Check, Search, Route, X } from 'lucide-vue-next'
+import * as XLSX from 'xlsx'
+import { Copy, Check, Search, Route, X, Upload, FileSpreadsheet, AlertCircle, Trash2 } from 'lucide-vue-next'
 import Button from '@/components/ui/Button.vue'
 
-type MainTab   = 'inquiry' | 'model-route'
+type MainTab   = 'inquiry' | 'model-route' | 'bulk-inquiry'
+type BulkTab   = 'card' | 'log_pass'
 type SerialType = 'card' | 'motherserial' | 'batch'
 
 const activeTab  = ref<MainTab>('inquiry')
@@ -68,6 +70,87 @@ async function copyAll() {
   setTimeout(() => { copiedMap.value = {} }, 1500)
 }
 
+// ── Bulk Inquiry ──────────────────────────────────────────────────────────────
+const bulkFile       = ref<File | null>(null)
+const bulkSerials    = ref<string[]>([])
+const bulkError      = ref('')
+const bulkActiveTab  = ref<BulkTab>('card')
+const copiedBulkCard = ref(false)
+const copiedBulkLog  = ref(false)
+const isDragging     = ref(false)
+
+function formatIn(values: string[]): string {
+  return values.map(v => `  '${v}'`).join(',\n')
+}
+
+const bulkCardQuery = computed(() => {
+  if (!bulkSerials.value.length) return ''
+  return `SELECT * FROM card\nWHERE serialno IN (\n${formatIn(bulkSerials.value)}\n)\nORDER BY lastupdate;`
+})
+
+const bulkLogPassQuery = computed(() => {
+  if (!bulkSerials.value.length) return ''
+  const suffixed = bulkSerials.value.map(s => `${s}_1`)
+  return `SELECT * FROM log_pass\nWHERE cardno IN (\n${formatIn(suffixed)}\n)\nORDER BY cardno, lastupdate;`
+})
+
+async function handleBulkFile(file: File) {
+  bulkError.value = ''
+  bulkSerials.value = []
+  bulkFile.value = file
+  try {
+    const buffer = await file.arrayBuffer()
+    const wb = XLSX.read(buffer, { type: 'array' })
+    const ws = wb.Sheets[wb.SheetNames[0]]
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' })
+    const serials = rows
+      .map(r => String(r['Serial'] ?? '').trim())
+      .filter(s => s.length > 0)
+    if (!serials.length) {
+      bulkError.value = 'No serials found. Make sure the column header is "Serial".'
+      return
+    }
+    bulkSerials.value = serials
+  } catch {
+    bulkError.value = 'Failed to read the file. Make sure it is a valid Excel file.'
+  }
+}
+
+function onBulkFileInput(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (file) handleBulkFile(file)
+}
+
+function onBulkDrop(e: DragEvent) {
+  isDragging.value = false
+  const file = e.dataTransfer?.files?.[0]
+  if (file) handleBulkFile(file)
+}
+
+function clearBulk() {
+  bulkFile.value = null
+  bulkSerials.value = []
+  bulkError.value = ''
+}
+
+function highlightBulk(sql: string): string {
+  return sql
+    .replace(/\b(SELECT|FROM|WHERE|IN|ORDER\s+BY)\b/g, '<span class="sql-keyword">$1</span>')
+    .replace(/'([^']*)'/g, "<span class=\"sql-string\">'$1'</span>")
+}
+
+async function copyBulkCard() {
+  await navigator.clipboard.writeText(bulkCardQuery.value)
+  copiedBulkCard.value = true
+  setTimeout(() => (copiedBulkCard.value = false), 1500)
+}
+
+async function copyBulkLog() {
+  await navigator.clipboard.writeText(bulkLogPassQuery.value)
+  copiedBulkLog.value = true
+  setTimeout(() => (copiedBulkLog.value = false), 1500)
+}
+
 // ── Model Route Checker ────────────────────────────────────────────────────────
 const partno        = ref('')
 const copiedRoute   = ref(false)
@@ -111,6 +194,15 @@ async function copyRoute() {
         @click="activeTab = 'model-route'"
       >
         Model Route Checker
+      </button>
+      <button
+        class="px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px"
+        :class="activeTab === 'bulk-inquiry'
+          ? 'border-foreground text-foreground'
+          : 'border-transparent text-muted-foreground hover:text-foreground'"
+        @click="activeTab = 'bulk-inquiry'"
+      >
+        Bulk Inquiry
       </button>
     </div>
 
@@ -173,7 +265,7 @@ async function copyRoute() {
     </div>
 
     <!-- ── Model Route Checker tab ── -->
-    <div v-else>
+    <div v-else-if="activeTab === 'model-route'">
       <p class="text-sm text-muted-foreground mb-5">Enter a part number / model number to generate a route check query.</p>
 
       <!-- Input -->
@@ -205,6 +297,96 @@ async function copyRoute() {
       <div v-else class="flex flex-col items-center justify-center py-24 text-muted-foreground/40 gap-2">
         <Route class="w-10 h-10" />
         <p class="text-sm">Enter a part no to see the query</p>
+      </div>
+    </div>
+
+    <!-- ── Bulk Inquiry tab ── -->
+    <div v-else-if="activeTab === 'bulk-inquiry'">
+      <p class="text-sm text-muted-foreground mb-5">
+        Upload an Excel file with a <code class="font-mono text-xs bg-muted/40 px-1 py-0.5 rounded">Serial</code> column to generate bulk lookup queries.
+      </p>
+
+      <!-- Drop zone -->
+      <div
+        v-if="!bulkFile"
+        class="mb-6 max-w-xl border-2 border-dashed rounded-lg p-10 flex flex-col items-center gap-3 cursor-pointer transition-colors"
+        :class="isDragging ? 'border-foreground bg-muted/20' : 'border-border hover:border-muted-foreground/50 hover:bg-muted/10'"
+        @dragover.prevent="isDragging = true"
+        @dragleave.prevent="isDragging = false"
+        @drop.prevent="onBulkDrop"
+        @click="($refs.bulkFileInput as HTMLInputElement).click()"
+      >
+        <Upload class="w-8 h-8 text-muted-foreground/50" />
+        <div class="text-center">
+          <p class="text-sm font-medium text-foreground">Drop your Excel file here</p>
+          <p class="text-xs text-muted-foreground mt-1">or click to browse — .xlsx / .xls</p>
+        </div>
+        <input ref="bulkFileInput" type="file" accept=".xlsx,.xls" class="hidden" @change="onBulkFileInput" />
+      </div>
+
+      <!-- File loaded state -->
+      <div v-else class="mb-6 max-w-xl flex items-center gap-3 px-4 py-3 rounded-lg border border-border bg-muted/10">
+        <FileSpreadsheet class="w-5 h-5 text-muted-foreground shrink-0" />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium truncate">{{ bulkFile.name }}</p>
+          <p v-if="bulkSerials.length" class="text-xs text-muted-foreground mt-0.5">{{ bulkSerials.length }} serial{{ bulkSerials.length !== 1 ? 's' : '' }} loaded</p>
+        </div>
+        <Button size="sm" variant="ghost" class="h-7 w-7 p-0 text-muted-foreground hover:text-foreground shrink-0" @click="clearBulk">
+          <Trash2 class="w-3.5 h-3.5" />
+        </Button>
+      </div>
+
+      <!-- Error -->
+      <div v-if="bulkError" class="mb-5 max-w-xl flex items-start gap-2.5 px-4 py-3 rounded-lg border border-destructive/40 bg-destructive/5 text-destructive text-sm">
+        <AlertCircle class="w-4 h-4 shrink-0 mt-0.5" />
+        <span>{{ bulkError }}</span>
+      </div>
+
+      <!-- Query results -->
+      <div v-if="bulkSerials.length">
+        <!-- Sub-tabs: Card / Log Pass -->
+        <div class="flex gap-1 mb-4 p-1 rounded-lg bg-muted/30 border border-border w-fit">
+          <button
+            v-for="tab in ([{ id: 'card', label: 'Card' }, { id: 'log_pass', label: 'Log Pass' }] as { id: BulkTab; label: string }[])"
+            :key="tab.id"
+            class="px-4 py-1.5 rounded-md text-sm font-medium transition-colors"
+            :class="bulkActiveTab === tab.id
+              ? 'bg-secondary text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'"
+            @click="bulkActiveTab = tab.id"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+
+        <!-- Card query -->
+        <div v-if="bulkActiveTab === 'card'" class="rounded-md border border-border overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/10">
+            <span class="text-xs font-medium text-muted-foreground">card</span>
+            <Button size="sm" variant="ghost" class="h-7 px-2 text-xs gap-1.5" @click="copyBulkCard">
+              <component :is="copiedBulkCard ? Check : Copy" class="w-3.5 h-3.5" />
+              {{ copiedBulkCard ? 'Copied' : 'Copy' }}
+            </Button>
+          </div>
+          <pre class="px-4 py-3 text-sm font-mono leading-relaxed whitespace-pre-wrap break-all"><code v-html="highlightBulk(bulkCardQuery)" /></pre>
+        </div>
+
+        <!-- Log Pass query -->
+        <div v-if="bulkActiveTab === 'log_pass'" class="rounded-md border border-border overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/10">
+            <span class="text-xs font-medium text-muted-foreground">log_pass</span>
+            <Button size="sm" variant="ghost" class="h-7 px-2 text-xs gap-1.5" @click="copyBulkLog">
+              <component :is="copiedBulkLog ? Check : Copy" class="w-3.5 h-3.5" />
+              {{ copiedBulkLog ? 'Copied' : 'Copy' }}
+            </Button>
+          </div>
+          <pre class="px-4 py-3 text-sm font-mono leading-relaxed whitespace-pre-wrap break-all"><code v-html="highlightBulk(bulkLogPassQuery)" /></pre>
+        </div>
+      </div>
+
+      <div v-else-if="!bulkFile" class="flex flex-col items-center justify-center py-16 text-muted-foreground/40 gap-2">
+        <FileSpreadsheet class="w-10 h-10" />
+        <p class="text-sm">Upload an Excel file to generate queries</p>
       </div>
     </div>
 
