@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Database, Search, XCircle, ClipboardList, GitBranch, Repeat2, ArrowLeftRight } from 'lucide-vue-next'
+import { Database, Search, XCircle, ClipboardList, GitBranch, Repeat2, ArrowLeftRight, Menu, X } from 'lucide-vue-next'
 import Badge from '@/components/ui/Badge.vue'
 import BulkRejection from '@/components/BulkRejection.vue'
 import ManualRegistration from '@/components/ManualRegistration.vue'
@@ -19,22 +19,49 @@ const navItems = [
   { id: 'transfer-history',    label: 'Transfer History',     icon: ArrowLeftRight,  ready: true  },
 ]
 
-const activeId = ref('inquiry')
-const activeItem = computed(() => navItems.find(n => n.id === activeId.value))
+const activeId    = ref('inquiry')
+const sidebarOpen = ref(false)
+const activeItem  = computed(() => navItems.find(n => n.id === activeId.value))
+
+function navigate(id: string) {
+  activeId.value    = id
+  sidebarOpen.value = false
+}
 </script>
 
 <template>
   <div class="bg-background text-foreground">
     <!-- Top bar -->
     <header class="fixed top-0 left-0 right-0 z-20 border-b border-border bg-background">
-      <div class="flex items-center gap-3 px-6 py-3">
+      <div class="flex items-center gap-3 px-4 py-3">
+        <!-- Hamburger (mobile only) -->
+        <button
+          class="sm:hidden p-1 -ml-1 text-muted-foreground hover:text-foreground transition-colors"
+          @click="sidebarOpen = !sidebarOpen"
+          aria-label="Toggle navigation"
+        >
+          <Menu v-if="!sidebarOpen" class="w-5 h-5" />
+          <X v-else class="w-5 h-5" />
+        </button>
         <Database class="w-5 h-5 text-muted-foreground" />
         <span class="font-semibold text-sm tracking-tight">Query Generator</span>
       </div>
     </header>
 
+    <!-- Mobile backdrop -->
+    <Transition name="fade">
+      <div
+        v-if="sidebarOpen"
+        class="fixed inset-0 z-10 bg-black/50 sm:hidden"
+        @click="sidebarOpen = false"
+      />
+    </Transition>
+
     <!-- Sidebar -->
-    <aside class="fixed top-[49px] left-0 w-56 h-[calc(100vh-49px)] border-r border-border bg-background z-10 flex flex-col overflow-y-auto">
+    <aside
+      class="fixed top-[49px] left-0 w-64 sm:w-56 h-[calc(100vh-49px)] border-r border-border bg-background z-10 flex flex-col overflow-y-auto transition-transform duration-200"
+      :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full sm:translate-x-0'"
+    >
       <div class="px-3 py-4 flex-1">
         <p class="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3 px-2">
           Support Type
@@ -43,13 +70,13 @@ const activeItem = computed(() => navItems.find(n => n.id === activeId.value))
           <button
             v-for="item in navItems"
             :key="item.id"
-            class="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors text-left"
+            class="w-full flex items-center gap-2.5 px-3 py-2.5 sm:py-2 rounded-md text-sm transition-colors text-left"
             :class="
               activeId === item.id
                 ? 'bg-secondary text-foreground font-medium'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
             "
-            @click="activeId = item.id"
+            @click="navigate(item.id)"
           >
             <component :is="item.icon" class="w-4 h-4 shrink-0" />
             <span class="flex-1 truncate">{{ item.label }}</span>
@@ -66,7 +93,7 @@ const activeItem = computed(() => navItems.find(n => n.id === activeId.value))
     </aside>
 
     <!-- Content -->
-    <main class="ml-56 mt-[49px] min-h-[calc(100vh-49px)] overflow-auto">
+    <main class="sm:ml-56 mt-[49px] min-h-[calc(100vh-49px)] overflow-auto">
       <Inquiry v-if="activeId === 'inquiry'" />
       <BulkRejection v-else-if="activeId === 'bulk-rejection'" />
       <ManualRegistration v-else-if="activeId === 'manual-registration'" />
@@ -77,4 +104,15 @@ const activeItem = computed(() => navItems.find(n => n.id === activeId.value))
     </main>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
 

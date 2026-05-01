@@ -140,12 +140,12 @@ async function copyRoute() {
 </script>
 
 <template>
-  <div class="p-6 max-w-7xl mx-auto">
+  <div class="p-4 sm:p-6 max-w-7xl mx-auto">
 
     <!-- Top-level tabs -->
-    <div class="flex border-b border-border mb-6">
+    <div class="flex border-b border-border mb-6 overflow-x-auto scrollbar-none">
       <button
-        class="px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px"
+        class="px-4 sm:px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0"
         :class="activeTab === 'inquiry'
           ? 'border-foreground text-foreground'
           : 'border-transparent text-muted-foreground hover:text-foreground'"
@@ -154,16 +154,16 @@ async function copyRoute() {
         Serial Inquiry
       </button>
       <button
-        class="px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px"
+        class="px-4 sm:px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0"
         :class="activeTab === 'model-route'
           ? 'border-foreground text-foreground'
           : 'border-transparent text-muted-foreground hover:text-foreground'"
         @click="activeTab = 'model-route'"
       >
-        Model Route Checker
+        Model Route
       </button>
       <button
-        class="px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px"
+        class="px-4 sm:px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0"
         :class="activeTab === 'bulk-inquiry'
           ? 'border-foreground text-foreground'
           : 'border-transparent text-muted-foreground hover:text-foreground'"
@@ -193,8 +193,8 @@ async function copyRoute() {
       </div>
 
       <!-- Input -->
-      <div class="flex gap-2 mb-6 max-w-xl">
-        <div class="relative flex-1">
+      <div class="flex gap-2 mb-6 w-full sm:max-w-xl">
+        <div class="relative flex-1 min-w-0">
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <input
             v-model="serial"
@@ -236,8 +236,8 @@ async function copyRoute() {
       <p class="text-sm text-muted-foreground mb-5">Enter a part number / model number to generate a route check query.</p>
 
       <!-- Input -->
-      <div class="flex gap-2 mb-6 max-w-xl">
-        <div class="relative flex-1">
+      <div class="flex gap-2 mb-6 w-full sm:max-w-xl">
+        <div class="relative flex-1 min-w-0">
           <Route class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <input
             v-model="partno"
@@ -276,7 +276,7 @@ async function copyRoute() {
       <!-- Drop zone -->
       <div
         v-if="!bulkFile"
-        class="mb-6 max-w-xl border-2 border-dashed rounded-lg p-10 flex flex-col items-center gap-3 cursor-pointer transition-colors"
+        class="mb-6 w-full sm:max-w-xl border-2 border-dashed rounded-lg p-8 sm:p-10 flex flex-col items-center gap-3 cursor-pointer transition-colors"
         :class="isDragging ? 'border-foreground bg-muted/20' : 'border-border hover:border-muted-foreground/50 hover:bg-muted/10'"
         @dragover.prevent="isDragging = true"
         @dragleave.prevent="isDragging = false"
@@ -292,7 +292,7 @@ async function copyRoute() {
       </div>
 
       <!-- File loaded state -->
-      <div v-else class="mb-6 max-w-xl flex items-center gap-3 px-4 py-3 rounded-lg border border-border bg-muted/10">
+      <div v-else class="mb-6 w-full sm:max-w-xl flex items-center gap-3 px-4 py-3 rounded-lg border border-border bg-muted/10">
         <FileSpreadsheet class="w-5 h-5 text-muted-foreground shrink-0" />
         <div class="flex-1 min-w-0">
           <p class="text-sm font-medium truncate">{{ bulkFile.name }}</p>
@@ -304,7 +304,7 @@ async function copyRoute() {
       </div>
 
       <!-- Error -->
-      <div v-if="bulkError" class="mb-5 max-w-xl flex items-start gap-2.5 px-4 py-3 rounded-lg border border-destructive/40 bg-destructive/5 text-destructive text-sm">
+      <div v-if="bulkError" class="mb-5 w-full sm:max-w-xl flex items-start gap-2.5 px-4 py-3 rounded-lg border border-destructive/40 bg-destructive/5 text-destructive text-sm">
         <AlertCircle class="w-4 h-4 shrink-0 mt-0.5" />
         <span>{{ bulkError }}</span>
       </div>
