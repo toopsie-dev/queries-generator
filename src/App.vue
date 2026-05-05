@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Database, Search, XCircle, ClipboardList, GitBranch, Repeat2, ArrowLeftRight, Menu, X } from 'lucide-vue-next'
+import { Database, Search, XCircle, ClipboardList, GitBranch, Repeat2, ArrowLeftRight, Download, Menu, X } from 'lucide-vue-next'
 import Badge from '@/components/ui/Badge.vue'
 import BulkRejection from '@/components/BulkRejection.vue'
 import ManualRegistration from '@/components/ManualRegistration.vue'
@@ -9,6 +9,7 @@ import Conversion from '@/components/Conversion.vue'
 import TransferHistory from '@/components/TransferHistory.vue'
 import ComingSoon from '@/components/ComingSoon.vue'
 import Inquiry from '@/components/Inquiry.vue'
+import DownloadTemplate from '@/components/DownloadTemplate.vue'
 
 const navItems = [
   { id: 'inquiry',             label: 'Inquiry',              icon: Search,          ready: true  },
@@ -17,6 +18,7 @@ const navItems = [
   { id: 'reroute',             label: 'Reroute',              icon: GitBranch,       ready: true  },
   { id: 'conversion',          label: 'Conversion',           icon: Repeat2,         ready: true  },
   { id: 'transfer-history',    label: 'Transfer History',     icon: ArrowLeftRight,  ready: true  },
+  { id: 'download-template',   label: 'Download Template',    icon: Download,        ready: true  },
 ]
 
 const activeId    = ref('inquiry')
@@ -100,6 +102,7 @@ function navigate(id: string) {
       <Reroute v-else-if="activeId === 'reroute'" />
       <Conversion v-else-if="activeId === 'conversion'" />
       <TransferHistory v-else-if="activeId === 'transfer-history'" />
+      <DownloadTemplate v-else-if="activeId === 'download-template'" />
       <ComingSoon v-else :label="activeItem?.label ?? ''" />
     </main>
   </div>
