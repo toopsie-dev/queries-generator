@@ -178,7 +178,7 @@ function insertLogPass(r: RowData): string {
     q(r.station), `''`,
     `'GOOD'`,
     q(r.date),
-    q(r.model),
+    `'CATS'`, 
   ].join(', ')
   return `INSERT INTO log_pass VALUES(${vals})`
 }
